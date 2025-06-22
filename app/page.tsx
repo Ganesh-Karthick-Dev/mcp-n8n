@@ -59,10 +59,6 @@ export default function Home() {
                 <h3 className="font-semibold text-gray-800">create_scheduled_workflow</h3>
                 <p className="text-gray-600 text-sm">Create workflows that run on a schedule</p>
               </div>
-              <div className="border-l-4 border-purple-500 pl-4">
-                <h3 className="font-semibold text-gray-800">create_complex_workflow</h3>
-                <p className="text-gray-600 text-sm">Create multi-step workflows with various node types</p>
-              </div>
             </div>
             <div className="space-y-4">
               <div className="border-l-4 border-orange-500 pl-4">
@@ -95,15 +91,6 @@ export default function Home() {
               </p>
               <p className="text-gray-600 italic">
                 "Create a daily workflow that checks my website status at 9 AM every day"
-              </p>
-            </div>
-            <div className="bg-gray-50 p-4 rounded">
-              <p className="text-gray-700 mb-2">
-                <strong>Complex workflow:</strong>
-              </p>
-              <p className="text-gray-600 italic">
-                "Create a workflow that processes incoming webhooks, filters for important data, transforms it, and
-                sends notifications"
               </p>
             </div>
           </div>
