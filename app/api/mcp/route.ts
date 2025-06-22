@@ -13,16 +13,21 @@ class N8nClient {
 
   private async request(endpoint: string, options: RequestInit = {}) {
     const url = `${this.baseUrl}/api/v1${endpoint}`
+    console.log(`Making request to: ${url}`)
+    
     const response = await fetch(url, {
       ...options,
       headers: {
         "X-N8N-API-KEY": this.apiKey,
         "Content-Type": "application/json",
+        "Accept": "application/json",
         ...options.headers,
       },
     })
 
     if (!response.ok) {
+      const errorText = await response.text()
+      console.error(`n8n API error: ${response.status} ${response.statusText}`, errorText)
       throw new Error(`n8n API error: ${response.status} ${response.statusText}`)
     }
 
@@ -53,6 +58,10 @@ class N8nClient {
 
 const handler = createMcpHandler(
   (server) => {
+    console.log('MCP Handler initialized with:', {
+      baseUrl: process.env.N8N_BASE_URL || "NOT_SET",
+      apiKeySet: !!process.env.N8N_API_KEY
+    })
     const n8nClient = new N8nClient(process.env.N8N_BASE_URL || "http://localhost:5678", process.env.N8N_API_KEY || "")
 
     // Tool to create a simple webhook to HTTP request workflow
@@ -68,6 +77,8 @@ const handler = createMcpHandler(
       },
       async ({ name, webhookPath, targetUrl, method, description }) => {
         try {
+          const webhookId = crypto.randomUUID()
+          
           const workflow = {
             name,
             nodes: [
@@ -76,28 +87,30 @@ const handler = createMcpHandler(
                   path: webhookPath,
                   options: {},
                 },
-                id: "webhook-node",
+                id: webhookId,
                 name: "Webhook",
                 type: "n8n-nodes-base.webhook",
                 typeVersion: 1,
                 position: [240, 300],
-                webhookId: crypto.randomUUID(),
+                webhookId: webhookId,
               },
               {
                 parameters: {
                   url: targetUrl,
-                  options: {},
-                  requestMethod: method,
+                  sendQuery: false,
+                  sendHeaders: false,
+                  sendBody: false,
+                  options: {}
                 },
-                id: "http-request-node",
+                id: crypto.randomUUID(),
                 name: "HTTP Request",
                 type: "n8n-nodes-base.httpRequest",
-                typeVersion: 4.1,
+                typeVersion: 4,
                 position: [460, 300],
               },
             ],
             connections: {
-              Webhook: {
+              "Webhook": {
                 main: [
                   [
                     {
@@ -109,14 +122,25 @@ const handler = createMcpHandler(
                 ],
               },
             },
-            active: false,
             settings: {
               executionOrder: "v1",
             },
-            meta: {
-              templateCredsSetupCompleted: true,
-            },
-            ...(description && { notes: description }),
+            staticData: {},
+          }
+
+          if (description) {
+            workflow.nodes.push({
+              parameters: {
+                content: description,
+                height: 80,
+                width: 150
+              },
+              id: crypto.randomUUID(),
+              name: "Sticky Note",
+              type: "n8n-nodes-base.stickyNote",
+              typeVersion: 1,
+              position: [240, 200],
+            })
           }
 
           const result = await n8nClient.createWorkflow(workflow)
@@ -155,6 +179,7 @@ const handler = createMcpHandler(
       },
       async ({ name, cronExpression, targetUrl, method, description }) => {
         try {
+          console.log('Creating scheduled workflow:', { name, cronExpression, targetUrl, method, description })
           const workflow = {
             name,
             nodes: [
@@ -169,22 +194,24 @@ const handler = createMcpHandler(
                     ],
                   },
                 },
-                id: "schedule-trigger",
+                id: crypto.randomUUID(),
                 name: "Schedule Trigger",
                 type: "n8n-nodes-base.scheduleTrigger",
-                typeVersion: 1.1,
+                typeVersion: 1,
                 position: [240, 300],
               },
               {
                 parameters: {
                   url: targetUrl,
-                  options: {},
-                  requestMethod: method,
+                  sendQuery: false,
+                  sendHeaders: false,
+                  sendBody: false,
+                  options: {}
                 },
-                id: "http-request-node",
+                id: crypto.randomUUID(),
                 name: "HTTP Request",
                 type: "n8n-nodes-base.httpRequest",
-                typeVersion: 4.1,
+                typeVersion: 4,
                 position: [460, 300],
               },
             ],
@@ -201,14 +228,25 @@ const handler = createMcpHandler(
                 ],
               },
             },
-            active: false,
             settings: {
               executionOrder: "v1",
             },
-            meta: {
-              templateCredsSetupCompleted: true,
-            },
-            ...(description && { notes: description }),
+            staticData: {},
+          }
+
+          if (description) {
+            workflow.nodes.push({
+              parameters: {
+                content: description,
+                height: 80,
+                width: 150
+              },
+              id: crypto.randomUUID(),
+              name: "Sticky Note",
+              type: "n8n-nodes-base.stickyNote",
+              typeVersion: 1,
+              position: [240, 200],
+            })
           }
 
           const result = await n8nClient.createWorkflow(workflow)
@@ -235,7 +273,9 @@ const handler = createMcpHandler(
     )
 
     // Tool to list existing workflows
-    server.tool("list_workflows", "Lists all workflows in the n8n instance", {}, async () => {
+    server.tool("list_workflows", "Lists all workflows in the n8n instance", {
+      random_string: z.string().describe("Dummy parameter for no-parameter tools")
+    }, async () => {
       try {
         const workflows = await n8nClient.getWorkflows()
 
